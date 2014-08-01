@@ -36,3 +36,41 @@ class DBError(Exception):
     pass
 class MultiColumnsError(DBError):
     pass
+class _LasyConnection(object):
+    def __init__(self):
+        self.connection = None
+    def cursor(self):
+        if self.connection is None:
+            connection = engine.connect()
+            logging.info('open connection <%s>...' % hex(id(connection)))
+            self.connection = connection
+        return self.connection.cursor()
+    def commit(self):
+        self.connection.commit()
+    def rollback(self):
+        self.connection.rollback()
+    def cleanup(self):
+        if self.connection:
+            connection = self.connection
+            self.connection = None
+            logging.info('close connection <%s>...' % hex(id(connection)))
+            connection.close()
+class _DbCtx(threading.local):
+    def __init__(self):
+        self.connection = None
+        self.transaction = 0
+    def is_init(self):
+        return not self.connection is None
+    def init(self):
+        logging.info('open lazy connection...')
+        self.connection = _LasyConnection()
+        self.transactions = 0
+    def cleanup(self):
+        self.connection.cleanup()
+        self.connection = None
+    def cursor(self):
+        return self.connection.cursor()
+
+_db_ctx = _DbCtx()
+engine = None
+class _Engine(object)
